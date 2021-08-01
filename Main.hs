@@ -15,7 +15,7 @@ import System.Process.Typed (readProcessStdout)
 import Data.String (fromString)
 import Data.ByteString.Char8 as B (unpack)
 import Data.ByteString.Lazy as L (toStrict)
-import Data.Either (rights)
+import Data.Either (rights, fromRight)
 import Data.Map as M (insert)
 import Data.SortedList as SL (toSortedList)
 import qualified Data.Text as T
@@ -31,8 +31,8 @@ import System.IO
 norminette :: FilePath -> IO [Diagnostic]
 norminette path = do
   (_, output) <- readProcessStdout (fromString $ "norminette " ++ path)
-  let source = tail . lines . B.unpack . L.toStrict $ output
-  return . rights . map ((convertToDiagnostic <$>) <$> runParser interpret () "") $ source
+  let either = map convertToDiagnostic <$> runParser interpret () "" (L.toStrict output)
+  return $ fromRight [] either
 
 writeTempFile :: String   -- file name template
               -> T.Text   -- data to store
@@ -91,7 +91,7 @@ optionsNoSync = defaultOptions {textDocumentSync = Just syncOptions}
 
 optionsSync :: Options
 optionsSync = defaultOptions {textDocumentSync = Just syncOptions}
-  where syncOptions = TextDocumentSyncOptions {_openClose = Just True, _change = Just TdSyncFull, _willSave = Nothing, _willSaveWaitUntil = Nothing, _save = Nothing}
+  where syncOptions = TextDocumentSyncOptions {_openClose = Just True, _change = Just TdSyncFull, _willSave = Nothing, _willSaveWaitUntil = Nothing, _save = Just $ InR (SaveOptions $ Just False)}
 
 -- norminette-lsp [--sync|--no-sync]
 data Sync = Sync
